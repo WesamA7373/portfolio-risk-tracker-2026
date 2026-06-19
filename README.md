@@ -2,6 +2,12 @@
 
 A modern, intelligent portfolio analysis tool that instantly calculates diversification scores and provides actionable investment recommendations. Users can analyze their portfolio as a guest or sign up to save results for long-term tracking.
 
+## 🌐 Live Demo
+
+**[View Live App](https://your-project-name.vercel.app)**
+
+> Note: Replace the URL above with your deployed app URL (e.g., from Vercel, Netlify, etc.)
+
 ## ✨ Features
 
 ### For All Users
@@ -42,7 +48,27 @@ A modern, intelligent portfolio analysis tool that instantly calculates diversif
    - Quick access to update or re-analyze
    - Secure data storage with Row Level Security
 
-## 🚀 Getting Started
+## � Screenshots
+
+### Portfolio Analysis Form
+![Portfolio Form](./screenshots/portfolio-form.png)
+*Clean, intuitive form for entering assets into your portfolio*
+
+### Results Dashboard
+![Results Dashboard](./screenshots/results-dashboard.png)
+*Comprehensive diversification analysis with actionable recommendations*
+
+### Guest Signup Modal
+![Signup Modal](./screenshots/signup-modal.png)
+*Easy sign-up option after viewing your portfolio results*
+
+> **Note**: To add screenshots:
+> 1. Take screenshots of your app running locally
+> 2. Create a `screenshots/` folder in the project root
+> 3. Save images as `portfolio-form.png`, `results-dashboard.png`, `signup-modal.png`
+> 4. Uncomment the image links above
+
+## �🚀 Getting Started
 
 ### Prerequisites
 - Node.js 18+ and npm
