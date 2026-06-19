@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { supabase } from '../lib/supabaseConfig'
+import { useState, useEffect } from "react";
 import PortfolioForm from "./components/PortfolioForm";
 import ResultsDashboard from "./components/ResultsDashboard";
 import GuestSignupModal from "./components/GuestSignupModal";
@@ -13,16 +14,32 @@ import {
 type AppState = "form" | "results" | "guest-view";
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
   const [state, setState] = useState<AppState>("form");
   const [results, setResults] = useState<DiversificationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+    
+    const fetchUsers = async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*");
+
+      if (error) {
+        console.error("Error fetching users:", error.message);
+      } else {
+        console.log("Users fetched successfully:", data);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
   const handleFormSubmit = async (assets: PortfolioAsset[]) => {
     setIsLoading(true);
-
-    // Simulate processing delay for better UX
     await new Promise((resolve) => setTimeout(resolve, 500));
-
     const calculatedResults = calculatePortfolioDiversification(assets);
     setResults(calculatedResults);
     setState("results");
@@ -34,11 +51,9 @@ export default function Home() {
   };
 
   const handleSignUp = () => {
-    // Store results for signup flow
     if (results) {
       localStorage.setItem("pending_portfolio", JSON.stringify(results));
     }
-    // TODO: Implement signup flow with Supabase
     window.location.href = "/auth/signup";
   };
 
@@ -60,37 +75,43 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Form Step */}
-        {state === "form" && (
+        {!mounted ? (
           <div className="bg-white rounded-lg shadow-lg p-8">
-            <PortfolioForm onSubmit={handleFormSubmit} isLoading={isLoading} />
+            <div className="text-center text-gray-500">Loading...</div>
           </div>
-        )}
-
-        {/* Results with Modal */}
-        {(state === "results" || state === "guest-view") && results && (
-          <div>
-            <div className="bg-white rounded-lg shadow-lg p-8">
-              <ResultsDashboard results={results} />
-
-              {/* Reset Button */}
-              <button
-                onClick={handleReset}
-                className="mt-8 w-full bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold py-3 rounded-lg transition"
-              >
-                Analyze Another Portfolio
-              </button>
-            </div>
-
-            {/* Guest/Signup Modal */}
-            {state === "results" && (
-              <GuestSignupModal
-                results={results}
-                onContinueAsGuest={handleContinueAsGuest}
-                onSignUp={handleSignUp}
-              />
+        ) : (
+          <>
+            {/* Form Step */}
+            {state === "form" && (
+              <div className="bg-white rounded-lg shadow-lg p-8">
+                <PortfolioForm onSubmit={handleFormSubmit} isLoading={isLoading} />
+              </div>
             )}
-          </div>
+
+            {/* Results with Modal */}
+            {(state === "results" || state === "guest-view") && results && (
+              <div>
+                <div className="bg-white rounded-lg shadow-lg p-8">
+                  <ResultsDashboard results={results} />
+
+                  <button
+                    onClick={handleReset}
+                    className="mt-8 w-full bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold py-3 rounded-lg transition"
+                  >
+                    Analyze Another Portfolio
+                  </button>
+                </div>
+
+                {state === "results" && (
+                  <GuestSignupModal
+                    results={results}
+                    onContinueAsGuest={handleContinueAsGuest}
+                    onSignUp={handleSignUp}
+                  />
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>

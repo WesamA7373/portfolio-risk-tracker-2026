@@ -27,6 +27,10 @@ alter table portfolios enable row level security;
 alter table assets enable row level security;
 
 -- Policies for Users table
+create policy "Users are publicly readable"
+on users for select
+using (true);
+
 create policy "Users can view own profile"
 on users for select
 using (auth.uid() = id);
