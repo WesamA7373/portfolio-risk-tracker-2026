@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from '../lib/supabaseConfig'
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import PortfolioForm from "./components/PortfolioForm";
 import ResultsDashboard from "./components/ResultsDashboard";
@@ -13,7 +14,27 @@ import {
 
 type AppState = "form" | "results" | "guest-view";
 
+// Validation function for PortfolioAsset
+const validateAssets = (assets: unknown): assets is PortfolioAsset[] => {
+  if (!Array.isArray(assets) || assets.length === 0) {
+    return false; // Must have at least one asset
+  }
+  return assets.every(
+    (asset) =>
+      typeof asset === "object" &&
+      asset !== null &&
+      typeof asset.name === "string" &&
+      asset.name.trim().length > 0 &&
+      typeof asset.allocation === "number" &&
+      asset.allocation > 0 &&
+      asset.allocation <= 100 &&
+      typeof asset.riskLevel === "string" &&
+      ["low", "medium", "high"].includes(asset.riskLevel)
+  );
+};
+
 export default function Home() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [state, setState] = useState<AppState>("form");
   const [results, setResults] = useState<DiversificationResult | null>(null);
@@ -23,14 +44,25 @@ export default function Home() {
     setMounted(true);
     
     const fetchUsers = async () => {
-      const { data, error } = await supabase
-        .from("users")
-        .select("*");
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select("*");
 
-      if (error) {
-        console.error("Error fetching users:", error.message);
-      } else {
+        if (error) {
+          console.error("Error fetching users:", error.message);
+          return;
+        }
+
+        // Validate data structure
+        if (!Array.isArray(data)) {
+          console.error("Invalid users data received");
+          return;
+        }
+
         console.log("Users fetched successfully:", data);
+      } catch (err) {
+        console.error("Exception fetching users:", err);
       }
     };
 
@@ -38,12 +70,30 @@ export default function Home() {
   }, []);
 
   const handleFormSubmit = async (assets: PortfolioAsset[]) => {
+    // Validate input
+    if (!assets || assets.length === 0) {
+      alert("Please add at least one asset to your portfolio.");
+      return;
+    }
+
+    if (!validateAssets(assets)) {
+      alert("Please check your portfolio data:\n- All fields must be filled\n- Allocations must be between 0-100%\n- Risk levels must be Low, Medium, or High");
+      return;
+    }
+
     setIsLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 500));
-    const calculatedResults = calculatePortfolioDiversification(assets);
-    setResults(calculatedResults);
-    setState("results");
-    setIsLoading(false);
+    
+    try {
+      const calculatedResults = calculatePortfolioDiversification(assets);
+      setResults(calculatedResults);
+      setState("results");
+    } catch (error) {
+      console.error("Error calculating portfolio:", error);
+      alert("An error occurred while analyzing your portfolio. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleContinueAsGuest = () => {
@@ -51,10 +101,28 @@ export default function Home() {
   };
 
   const handleSignUp = () => {
-    if (results) {
-      localStorage.setItem("pending_portfolio", JSON.stringify(results));
+    if (!results) {
+      router.push("/auth/signup");
+      return;
     }
-    window.location.href = "/auth/signup";
+
+    try {
+      // Validate before storing
+      const serialized = JSON.stringify(results);
+      if (serialized.length > 1000000) {
+        // Prevent storing excessively large data
+        console.error("Portfolio data too large to store");
+        alert("Portfolio data is too large to save. Please try again.");
+        return;
+      }
+      localStorage.setItem("pending_portfolio", serialized);
+    } catch (error) {
+      console.error("Error storing portfolio data:", error);
+      alert("Unable to save your portfolio. Please try again.");
+      return;
+    }
+
+    router.push("/auth/signup");
   };
 
   const handleReset = () => {

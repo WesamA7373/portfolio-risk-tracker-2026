@@ -12,6 +12,39 @@ export interface DiversificationResult {
   summary: string;
 }
 
+// Constants for validation
+const MAX_STRING_LENGTH = 255;
+const MAX_AMOUNT = 1_000_000_000; // 1 billion
+const MIN_AMOUNT = 0.01;
+
+// Validation function
+function validateAsset(asset: unknown): asset is PortfolioAsset {
+  if (typeof asset !== "object" || asset === null) return false;
+  
+  const a = asset as any;
+  
+  // Check required fields
+  if (typeof a.name !== "string" || typeof a.type !== "string" || typeof a.amount !== "number") {
+    return false;
+  }
+  
+  // Validate string lengths
+  if (a.name.length === 0 || a.name.length > MAX_STRING_LENGTH) return false;
+  if (a.type.length === 0 || a.type.length > MAX_STRING_LENGTH) return false;
+  
+  // Validate amount is a positive number within bounds
+  if (!Number.isFinite(a.amount) || a.amount < MIN_AMOUNT || a.amount > MAX_AMOUNT) {
+    return false;
+  }
+  
+  return true;
+}
+
+function validateAssets(assets: unknown): assets is PortfolioAsset[] {
+  if (!Array.isArray(assets) || assets.length === 0) return false;
+  return assets.every(validateAsset);
+}
+
 // Asset type categorization
 const ASSET_CATEGORIES = {
   stocks: ["stock", "equity", "share", "etf"],
@@ -23,7 +56,10 @@ const ASSET_CATEGORIES = {
 };
 
 function categorizeAsset(name: string, type: string): string {
-  const combined = `${name} ${type}`.toLowerCase();
+  // Sanitize and limit input
+  const safeName = name.slice(0, MAX_STRING_LENGTH).toLowerCase().trim();
+  const safeType = type.slice(0, MAX_STRING_LENGTH).toLowerCase().trim();
+  const combined = `${safeName} ${safeType}`;
 
   for (const [category, keywords] of Object.entries(ASSET_CATEGORIES)) {
     if (keywords.some((keyword) => combined.includes(keyword))) {
@@ -40,7 +76,7 @@ function calculateDiversificationScore(assets: PortfolioAsset[]): number {
   // Calculate total portfolio value
   const totalValue = assets.reduce((sum, asset) => sum + asset.amount, 0);
 
-  if (totalValue === 0) return 0;
+  if (totalValue <= 0) return 0;
 
   // Categorize assets and calculate weights
   const categoryWeights: Record<string, number> = {};
@@ -48,8 +84,11 @@ function calculateDiversificationScore(assets: PortfolioAsset[]): number {
   assets.forEach((asset) => {
     const category = categorizeAsset(asset.name, asset.type);
     const weight = asset.amount / totalValue;
-    categoryWeights[category] =
-      (categoryWeights[category] || 0) + weight;
+    
+    // Ensure weight is valid before adding
+    if (Number.isFinite(weight) && weight >= 0 && weight <= 1) {
+      categoryWeights[category] = (categoryWeights[category] || 0) + weight;
+    }
   });
 
   // Calculate Herfindahl-Hirschman Index (HHI) for diversification
@@ -158,8 +197,17 @@ function generateSummary(assets: PortfolioAsset[], score: number): string {
 }
 
 export function calculatePortfolioDiversification(
-  assets: PortfolioAsset[]
+  assets: unknown
 ): DiversificationResult {
+  // Validate input
+  if (!validateAssets(assets)) {
+    throw new Error(
+      "Invalid portfolio assets. Each asset must have: " +
+      "name (string, 1-255 chars), type (string, 1-255 chars), " +
+      "amount (number, $0.01-$1B). Array must have at least 1 asset."
+    );
+  }
+
   const score = calculateDiversificationScore(assets);
   const recommendations = generateRecommendations(assets, score);
   const summary = generateSummary(assets, score);
